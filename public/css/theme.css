@@ -1,0 +1,103 @@
+:root {
+    /* Light Theme */
+    --bg-primary: #f9fafb;
+    --bg-secondary: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --accent-primary: #2563eb;
+    --accent-hover: #1d4ed8;
+    --border-color: #e5e7eb;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    /* Dark Theme */
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --accent-primary: #3b82f6;
+    --accent-hover: #60a5fa;
+    --border-color: #374151;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Aplicar cores do tema */
+.bg-primary { background-color: var(--bg-primary) !important; }
+.bg-secondary { background-color: var(--bg-secondary) !important; }
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.border-theme { border-color: var(--border-color) !important; }
+.accent-primary { 
+    background-color: var(--accent-primary) !important;
+    color: white !important;
+}
+.accent-primary:hover {
+    background-color: var(--accent-hover) !important;
+}
+
+/* Transições suaves */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Animações de página */
+.page-transition {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Feedback visual */
+.feedback-message {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    animation: slideIn 0.3s ease-in-out;
+    z-index: 50;
+}
+
+.feedback-success {
+    background-color: #059669;
+    color: white;
+}
+
+.feedback-error {
+    background-color: #dc2626;
+    color: white;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        position: fixed;
+        z-index: 40;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+}
