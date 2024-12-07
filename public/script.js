@@ -28,10 +28,16 @@ function initializeCadastroPage() {
 
     // Setup do upload de imagem
     const imageInput = document.getElementById('imagem');
+    if (!imageInput) return;
+
     const imagePreview = document.getElementById('image-preview');
     const dropzoneLabel = document.getElementById('dropzone-label');
     const removeButton = document.getElementById('remove-image');
+    
+    if (!imagePreview || !dropzoneLabel || !removeButton) return;
+
     const dropZone = imageInput.parentElement;
+    if (!dropZone) return;
 
     // Função para mostrar preview
     const showPreview = (file) => {
@@ -40,6 +46,8 @@ function initializeCadastroPage() {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = imagePreview.querySelector('img');
+            if (!img) return;
+            
             img.src = e.target.result;
             dropzoneLabel.classList.add('hidden');
             imagePreview.classList.remove('hidden');
@@ -48,333 +56,205 @@ function initializeCadastroPage() {
         reader.readAsDataURL(file);
     };
 
-    // Função para remover imagem
-    const removeImage = () => {
-        imageInput.value = '';
-        dropzoneLabel.classList.remove('hidden');
-        imagePreview.classList.add('hidden');
-        removeButton.classList.add('hidden');
-        const img = imagePreview.querySelector('img');
-        img.src = '';
-    };
-
-    // Event listeners para drag and drop
-    dropZone.addEventListener('dragover', (e) => {
+    // Event listeners para o formulário
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        dropZone.classList.add('border-accent-primary');
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-accent-primary');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-accent-primary');
         
-        if (e.dataTransfer.files.length) {
-            const file = e.dataTransfer.files[0];
-            if (file.type.startsWith('image/')) {
-                imageInput.files = e.dataTransfer.files;
-                showPreview(file);
-            } else {
-                ui.showFeedback('Por favor, selecione apenas imagens.', 'error');
-            }
-        }
-    });
-
-    // Event listener para seleção de arquivo
-    imageInput.addEventListener('change', (e) => {
-        if (e.target.files.length) {
-            const file = e.target.files[0];
-            if (file.size > 5 * 1024 * 1024) {
-                ui.showFeedback('A imagem deve ter no máximo 5MB.', 'error');
-                removeImage();
-                return;
-            }
-            showPreview(file);
-        }
-    });
-
-    // Event listener para remover imagem
-    removeButton.addEventListener('click', removeImage);
-
-    // Event listener para o formulário
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        ui.showLoading();
-
         try {
-            const product = {
-                referencia: document.getElementById('referencia').value,
-                marca: document.getElementById('marca').value,
-                descricao: document.getElementById('descricao').value,
-                preco: document.getElementById('preco').value
-            };
-
-            // Processa a imagem
-            if (imageInput.files && imageInput.files[0]) {
-                const imageData = await processImage(imageInput.files[0]);
-                product.imagem = imageData;
-            }
-
-            // Adiciona o produto
-            await productManager.addProduct(product);
+            const formData = new FormData(form);
+            const productData = {};
             
-            ui.showFeedback('Produto cadastrado com sucesso!', 'success');
+            formData.forEach((value, key) => {
+                productData[key] = value;
+            });
+
+            await productManager.addProduct(productData);
             form.reset();
-            removeImage();
+            ui.showFeedback('Produto cadastrado com sucesso!', 'success');
         } catch (error) {
             ui.showFeedback(error.message, 'error');
-        } finally {
-            ui.hideLoading();
         }
     });
+
+    // Event listeners para upload de imagem
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            showPreview(file);
+        });
+    }
+
+    if (removeButton) {
+        removeButton.addEventListener('click', () => {
+            imageInput.value = '';
+            imagePreview.querySelector('img').src = '';
+            dropzoneLabel.classList.remove('hidden');
+            imagePreview.classList.add('hidden');
+            removeButton.classList.add('hidden');
+        });
+    }
+
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-accent-primary');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-accent-primary');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-accent-primary');
+            const file = e.dataTransfer.files[0];
+            imageInput.files = e.dataTransfer.files;
+            showPreview(file);
+        });
+    }
 }
 
 // Inicializa a página de listagem
 function initializeListingPage() {
-    const productList = document.getElementById('productList');
+    const productList = document.getElementById('product-list');
     if (!productList) return;
 
-    // Renderiza produtos iniciais
-    const products = productManager.getProducts();
-    ui.renderProducts(products, productList);
+    const searchInput = document.getElementById('search-input');
+    const brandFilter = document.getElementById('brand-filter');
+    const sortSelect = document.getElementById('sort-select');
 
-    // Setup da pesquisa
-    const searchInput = document.querySelector('input[type="text"][placeholder="Pesquisar produtos..."]');
+    // Carrega os produtos iniciais
+    loadProducts();
+
+    // Configura os event listeners
     if (searchInput) {
         searchInput.addEventListener('input', handleSearch);
     }
 
-    // Setup do filtro de marca
-    const marcaSelect = document.querySelector('select:first-of-type');
-    if (marcaSelect) {
-        const marcas = productManager.getUniqueBrands();
-        ui.updateBrandsSelect(marcas, marcaSelect);
-        marcaSelect.addEventListener('change', handleFilters);
+    if (brandFilter) {
+        brandFilter.addEventListener('change', handleFilters);
     }
 
-    // Setup da ordenação
-    const sortSelect = document.querySelector('select:last-of-type');
     if (sortSelect) {
         sortSelect.addEventListener('change', handleFilters);
-    }
-
-    // Setup do formulário de edição
-    const editForm = document.getElementById('editForm');
-    if (editForm) {
-        editForm.addEventListener('submit', handleEditSubmit);
     }
 }
 
 // Inicializa a página inicial
 function initializeIndexPage() {
-    // Implementar funcionalidades específicas da página inicial
+    // Adicione aqui a lógica para a página inicial
+}
+
+// Função para carregar produtos
+async function loadProducts() {
+    try {
+        const products = await productManager.getProducts();
+        displayProducts(products);
+    } catch (error) {
+        ui.showFeedback('Erro ao carregar produtos', 'error');
+    }
+}
+
+// Função para exibir produtos
+function displayProducts(products) {
+    const productList = document.getElementById('product-list');
+    if (!productList) return;
+
+    productList.innerHTML = '';
+
+    if (products.length === 0) {
+        productList.innerHTML = `
+            <div class="text-center py-8 text-secondary col-span-full">
+                <p>Nenhum produto encontrado</p>
+            </div>
+        `;
+        return;
+    }
+
+    products.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'bg-secondary rounded-lg shadow-lg overflow-hidden';
+        card.innerHTML = `
+            <div class="relative">
+                <img src="${product.imagem || '/images/no-image.jpg'}" 
+                     alt="${product.referencia}" 
+                     class="w-full h-48 object-cover">
+                <div class="absolute top-2 right-2 flex gap-2">
+                    <button onclick="editProduct(${product.id})" 
+                            class="p-2 bg-accent-primary text-white rounded-full hover:bg-accent-secondary">
+                        <i data-feather="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="deleteProduct(${product.id})" 
+                            class="p-2 bg-red-500 text-white rounded-full hover:bg-red-600">
+                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-lg font-semibold text-primary">${product.referencia}</h3>
+                    <span class="text-sm font-medium text-accent-primary">
+                        R$ ${parseFloat(product.preco).toFixed(2)}
+                    </span>
+                </div>
+                <p class="text-secondary mb-2">${product.marca}</p>
+                <p class="text-sm text-secondary mb-4">${product.descricao}</p>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-secondary">
+                        <i data-feather="box" class="inline w-4 h-4 mr-1"></i>
+                        Estoque: ${product.stock || 0}
+                    </span>
+                    <span class="text-secondary">
+                        <i data-feather="tag" class="inline w-4 h-4 mr-1"></i>
+                        ${product.category || 'Geral'}
+                    </span>
+                </div>
+                <div class="mt-2 text-sm">
+                    <span class="text-secondary">
+                        <i data-feather="ruler" class="inline w-4 h-4 mr-1"></i>
+                        Tamanho: ${product.size || 'N/A'}
+                    </span>
+                </div>
+            </div>
+        `;
+        productList.appendChild(card);
+    });
+
+    // Reinicializa os ícones do Feather
+    feather.replace();
 }
 
 // Handlers
-async function handleSearch(e) {
+function handleSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
-    const marcaSelect = document.querySelector('select:first-of-type');
-    const marca = marcaSelect ? marcaSelect.value : '';
-    
-    const filteredProducts = productManager.filterProducts(searchTerm, marca);
-    ui.renderProducts(filteredProducts, document.getElementById('productList'));
+    loadProducts(searchTerm);
 }
 
-async function handleFilters() {
-    const searchInput = document.querySelector('input[type="text"][placeholder="Pesquisar produtos..."]');
-    const marcaSelect = document.querySelector('select:first-of-type');
-    const sortSelect = document.querySelector('select:last-of-type');
-    
-    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    const marca = marcaSelect ? marcaSelect.value : '';
-    const sortBy = sortSelect ? sortSelect.value : '';
-    
-    let products = productManager.filterProducts(searchTerm, marca);
-    products = productManager.sortProducts(products, sortBy);
-    
-    ui.renderProducts(products, document.getElementById('productList'));
+function handleFilters() {
+    loadProducts();
 }
 
-async function handleEditSubmit(e) {
-    e.preventDefault();
-    ui.showLoading();
-
+// Funções globais para edição e exclusão
+window.editProduct = async function(id) {
     try {
-        const index = document.getElementById('editId').value;
-        const currentProducts = productManager.getProducts();
-        const editedProduct = {
-            referencia: document.getElementById('editReferencia').value,
-            marca: document.getElementById('editMarca').value,
-            descricao: document.getElementById('editDescricao').value,
-            preco: document.getElementById('editPreco').value,
-            imagem: currentProducts[index].imagem // Mantém a imagem atual por padrão
-        };
-
-        // Processa nova imagem se fornecida
-        const imageInput = document.getElementById('editImagem');
-        const removeButton = document.getElementById('edit-remove-image');
-        
-        if (removeButton.classList.contains('hidden')) {
-            // Se o botão de remover está oculto e não há nova imagem, mantém a imagem atual
-        } else if (imageInput.files && imageInput.files[0]) {
-            // Se uma nova imagem foi selecionada
-            editedProduct.imagem = await processImage(imageInput.files[0]);
-        } else {
-            // Se o botão de remover está visível mas não há nova imagem, significa que a imagem foi removida
-            editedProduct.imagem = '';
+        const product = await productManager.getProduct(id);
+        if (product) {
+            // Implemente a lógica de edição aqui
+            ui.showFeedback('Função de edição em desenvolvimento', 'info');
         }
-
-        await productManager.updateProduct(index, editedProduct);
-        closeEditModal();
-        ui.showFeedback('Produto atualizado com sucesso!', 'success');
-        
-        // Atualiza a listagem
-        handleFilters();
     } catch (error) {
-        ui.showFeedback(error.message, 'error');
-    } finally {
-        ui.hideLoading();
+        ui.showFeedback('Erro ao carregar produto', 'error');
     }
-}
+};
 
-// Funções auxiliares
-async function processImage(file) {
-    return new Promise((resolve, reject) => {
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            reject(new Error('Imagem muito grande. Limite de 5MB.'));
-            return;
+window.deleteProduct = async function(id) {
+    if (confirm('Tem certeza que deseja excluir este produto?')) {
+        try {
+            await productManager.deleteProduct(id);
+            loadProducts();
+            ui.showFeedback('Produto excluído com sucesso', 'success');
+        } catch (error) {
+            ui.showFeedback('Erro ao excluir produto', 'error');
         }
-
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = () => reject(new Error('Erro ao processar imagem'));
-        reader.readAsDataURL(file);
-    });
-}
-
-// Funções expostas globalmente
-window.openEditModal = async function(index) {
-    const product = productManager.getProducts()[index];
-    
-    document.getElementById('editId').value = index;
-    document.getElementById('editReferencia').value = product.referencia;
-    document.getElementById('editMarca').value = product.marca;
-    document.getElementById('editDescricao').value = product.descricao;
-    document.getElementById('editPreco').value = product.preco;
-
-    // Setup da preview de imagem
-    const imagePreview = document.getElementById('edit-image-preview');
-    const dropzoneLabel = document.getElementById('edit-dropzone-label');
-    const img = imagePreview.querySelector('img');
-    
-    if (product.imagem) {
-        img.src = product.imagem;
-        dropzoneLabel.classList.add('hidden');
-        imagePreview.classList.remove('hidden');
-    } else {
-        dropzoneLabel.classList.remove('hidden');
-        imagePreview.classList.add('hidden');
     }
-    
-    document.getElementById('editModal').classList.remove('hidden');
-    setupEditImageHandlers();
-}
-
-function setupEditImageHandlers() {
-    const imageInput = document.getElementById('editImagem');
-    const imagePreview = document.getElementById('edit-image-preview');
-    const dropzoneLabel = document.getElementById('edit-dropzone-label');
-    const removeButton = document.getElementById('edit-remove-image');
-    const dropZone = imageInput.parentElement;
-
-    // Função para mostrar preview
-    const showPreview = (file) => {
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = imagePreview.querySelector('img');
-            img.src = e.target.result;
-            dropzoneLabel.classList.add('hidden');
-            imagePreview.classList.remove('hidden');
-            removeButton.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-    };
-
-    // Função para remover imagem
-    const removeImage = () => {
-        imageInput.value = '';
-        dropzoneLabel.classList.remove('hidden');
-        imagePreview.classList.add('hidden');
-        removeButton.classList.add('hidden');
-        const img = imagePreview.querySelector('img');
-        img.src = '';
-    };
-
-    // Event listeners para drag and drop
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('border-accent-primary');
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-accent-primary');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-accent-primary');
-        
-        if (e.dataTransfer.files.length) {
-            const file = e.dataTransfer.files[0];
-            if (file.type.startsWith('image/')) {
-                imageInput.files = e.dataTransfer.files;
-                showPreview(file);
-            } else {
-                ui.showFeedback('Por favor, selecione apenas imagens.', 'error');
-            }
-        }
-    });
-
-    // Event listener para seleção de arquivo
-    imageInput.addEventListener('change', (e) => {
-        if (e.target.files.length) {
-            const file = e.target.files[0];
-            if (file.size > 5 * 1024 * 1024) {
-                ui.showFeedback('A imagem deve ter no máximo 5MB.', 'error');
-                removeImage();
-                return;
-            }
-            showPreview(file);
-        }
-    });
-
-    // Event listener para remover imagem
-    removeButton.addEventListener('click', removeImage);
-}
-
-window.closeEditModal = function() {
-    document.getElementById('editModal').classList.add('hidden');
-}
-
-window.deleteProduct = async function(index) {
-    const confirmed = await ui.showConfirmDialog('Tem certeza que deseja excluir este produto?');
-    if (!confirmed) return;
-
-    ui.showLoading();
-    try {
-        await productManager.deleteProduct(index);
-        ui.showFeedback('Produto excluído com sucesso!', 'success');
-        handleFilters();
-    } catch (error) {
-        ui.showFeedback(error.message, 'error');
-    } finally {
-        ui.hideLoading();
-    }
-}
+};

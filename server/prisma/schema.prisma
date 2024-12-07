@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tabela principal de produtos
+model Product {
+  id            Int       @id @default(autoincrement())
+  referenceCode String    @unique @map("reference_code") @db.VarChar(50)
+  name          String    @db.VarChar(255)
+  description   String?   @db.Text
+  price         Decimal   @db.Decimal(10, 2)
+  size          String    @db.VarChar(10)
+  color         String?   @db.VarChar(50)
+  material      String?   @db.VarChar(100)
+  gender        Gender    @default(UNISEX)
+  status        Status    @default(ACTIVE)
+  featured      Boolean   @default(false)
+  brandId       Int       @map("brand_id")
+  categoryId    Int       @map("category_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  // Relacionamentos
+  brand     Brand      @relation(fields: [brandId], references: [id])
+  category  Category   @relation(fields: [categoryId], references: [id])
+  images    Image[]
+  inventory Inventory?
+
+  @@map("products")
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([featured])
+}
+
+// Tabela de marcas
+model Brand {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  logo        String?   @db.VarChar(255)
+  website     String?   @db.VarChar(255)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  products    Product[]
+
+  @@map("brands")
+  @@index([active])
+}
+
+// Tabela de categorias
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(50)
+  description String?   @db.Text
+  parentId    Int?      @map("parent_id")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  products    Product[]
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+
+  @@map("categories")
+  @@index([parentId])
+  @@index([active])
+}
+
+// Tabela de imagens
+model Image {
+  id        Int      @id @default(autoincrement())
+  url       String   @db.VarChar(255)
+  alt       String?  @db.VarChar(255)
+  order     Int      @default(0)
+  productId Int      @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("images")
+  @@index([productId])
+}
+
+// Tabela de inventário
+model Inventory {
+  id        Int      @id @default(autoincrement())
+  quantity  Int      @default(0)
+  minStock  Int      @default(0) @map("min_stock")
+  maxStock  Int?     @map("max_stock")
+  location  String?  @db.VarChar(100)
+  productId Int      @unique @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("inventory")
+  @@index([quantity])
+}
+
+// Enums
+enum Gender {
+  MALE
+  FEMALE
+  UNISEX
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  DRAFT
+  DISCONTINUED
+}

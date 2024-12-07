@@ -3,7 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShoeStock - Sistema de Gerenciamento de Calçados</title>
+    <title>ShoeStock - Sistema de Gerenciamento de Estoque</title>
+    <script>
+        // Verifica se o usuário está autenticado
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            // Se não estiver autenticado, redireciona para a página de login
+            window.location.href = '/login.html';
+        } else {
+            // Se estiver autenticado, redireciona para a página de listagem
+            window.location.href = '/listing.html';
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="css/theme.css" rel="stylesheet">
@@ -76,7 +87,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-lg font-semibold text-primary mb-2">Total de Produtos</h3>
-                            <p class="text-3xl font-bold text-accent-primary">0</p>
+                            <p class="text-3xl font-bold text-accent-primary" data-stat="total-products">0</p>
                         </div>
                         <div class="bg-accent-primary bg-opacity-10 p-3 rounded-full">
                             <i data-feather="package" class="text-accent-primary"></i>
@@ -88,7 +99,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-lg font-semibold text-primary mb-2">Valor Total</h3>
-                            <p class="text-3xl font-bold text-accent-primary">R$ 0,00</p>
+                            <p class="text-3xl font-bold text-accent-primary" data-stat="total-value">R$ 0,00</p>
                         </div>
                         <div class="bg-accent-primary bg-opacity-10 p-3 rounded-full">
                             <i data-feather="dollar-sign" class="text-accent-primary"></i>
@@ -119,10 +130,77 @@
                     <!-- Os produtos serão inseridos aqui dinamicamente -->
                 </div>
             </div>
+
+            <!-- Lista de Produtos -->
+            <div class="mt-8">
+                <h2 class="text-2xl font-bold text-primary mb-6">Produtos Recentes</h2>
+                <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Os produtos serão carregados aqui via JavaScript -->
+                </div>
+            </div>
         </div>
     </main>
 
-    <script src="js/theme.js"></script>
-    <script src="script.js" type="module"></script>
+    <script src="js/services/database.service.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        // Inicializa os ícones
+        feather.replace();
+
+        // Inicializa o tema
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        // Carrega o tema salvo
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        body.dataset.theme = savedTheme;
+        themeToggle.checked = savedTheme === 'dark';
+
+        // Toggle do tema
+        themeToggle.addEventListener('change', () => {
+            const newTheme = themeToggle.checked ? 'dark' : 'light';
+            body.dataset.theme = newTheme;
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // Mobile menu
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const nav = document.querySelector('nav');
+        const overlay = document.getElementById('mobile-overlay');
+
+        mobileMenuButton.addEventListener('click', () => {
+            nav.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        });
+
+        overlay.addEventListener('click', () => {
+            nav.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        });
+
+        // Carrega os produtos
+        const databaseService = new DatabaseService();
+        const ui = new UI();
+
+        async function loadProducts() {
+            try {
+                const products = await databaseService.getProducts();
+                ui.renderProducts(products, document.getElementById('product-list'));
+                
+                // Atualiza as estatísticas
+                const totalProducts = products.length;
+                const totalValue = products.reduce((sum, product) => sum + parseFloat(product.preco), 0);
+                
+                document.querySelector('[data-stat="total-products"]').textContent = totalProducts;
+                document.querySelector('[data-stat="total-value"]').textContent = 
+                    `R$ ${totalValue.toFixed(2).replace('.', ',')}`;
+            } catch (error) {
+                console.error('Erro ao carregar produtos:', error);
+            }
+        }
+
+        // Carrega os produtos quando a página carregar
+        loadProducts();
+    </script>
 </body>
 </html>

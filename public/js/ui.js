@@ -1,44 +1,71 @@
-// Gerenciamento da interface do usuário
+// Classe para gerenciar a interface do usuário
 class UI {
     constructor() {
         this.feedbackTimeout = null;
-        this.loadingCount = 0;
     }
 
-    // Mostra feedback ao usuário
-    showFeedback(message, type = 'info', duration = 5000) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+    // Mostra mensagem de feedback
+    showFeedback(message, type = 'info') {
+        // Remove feedback anterior se existir
+        this.removeFeedback();
+
+        // Cria o elemento de feedback
+        const feedback = document.createElement('div');
+        feedback.id = 'feedback';
+        feedback.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
             type === 'success' ? 'bg-green-500' :
             type === 'error' ? 'bg-red-500' :
             'bg-blue-500'
         } text-white`;
-        
-        alertDiv.setAttribute('role', 'alert');
-        alertDiv.innerHTML = `
+
+        feedback.innerHTML = `
             <div class="flex items-center">
-                <i data-feather="${
-                    type === 'success' ? 'check-circle' :
-                    type === 'error' ? 'alert-circle' :
-                    'info'
-                }" class="mr-2"></i>
-                <span>${message}</span>
+                <span class="mr-2">
+                    ${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}
+                </span>
+                <p>${message}</p>
             </div>
         `;
-        
-        document.body.appendChild(alertDiv);
-        feather.replace();
 
-        // Remove feedback anterior se existir
+        // Adiciona ao body
+        document.body.appendChild(feedback);
+
+        // Remove após 3 segundos
+        this.feedbackTimeout = setTimeout(() => {
+            this.removeFeedback();
+        }, 3000);
+    }
+
+    // Remove mensagem de feedback
+    removeFeedback() {
+        const feedback = document.getElementById('feedback');
+        if (feedback) {
+            feedback.remove();
+        }
         if (this.feedbackTimeout) {
             clearTimeout(this.feedbackTimeout);
         }
+    }
 
-        // Configura remoção automática
-        this.feedbackTimeout = setTimeout(() => {
-            alertDiv.classList.add('opacity-0', 'transition-opacity');
-            setTimeout(() => alertDiv.remove(), 300);
-        }, duration);
+    // Mostra loading
+    showLoading() {
+        const loading = document.createElement('div');
+        loading.id = 'loading';
+        loading.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        loading.innerHTML = `
+            <div class="bg-white p-4 rounded-lg">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+            </div>
+        `;
+        document.body.appendChild(loading);
+    }
+
+    // Remove loading
+    hideLoading() {
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.remove();
+        }
     }
 
     // Mostra diálogo de confirmação
@@ -77,37 +104,6 @@ class UI {
         });
     }
 
-    // Mostra indicador de carregamento
-    showLoading() {
-        this.loadingCount++;
-        
-        if (this.loadingCount === 1) {
-            const loader = document.createElement('div');
-            loader.id = 'global-loader';
-            loader.className = 'fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50';
-            loader.setAttribute('role', 'progressbar');
-            loader.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 rounded-lg p-4 flex items-center space-x-3">
-                    <div class="animate-spin rounded-full h-6 w-6 border-4 border-accent-primary border-t-transparent"></div>
-                    <span class="text-primary">Carregando...</span>
-                </div>
-            `;
-            document.body.appendChild(loader);
-        }
-    }
-
-    // Esconde indicador de carregamento
-    hideLoading() {
-        this.loadingCount = Math.max(0, this.loadingCount - 1);
-        
-        if (this.loadingCount === 0) {
-            const loader = document.getElementById('global-loader');
-            if (loader) {
-                loader.remove();
-            }
-        }
-    }
-
     // Renderiza lista de produtos
     renderProducts(products, container) {
         if (!container) return;
@@ -139,22 +135,27 @@ class UI {
                         <span class="text-sm font-medium text-accent-primary">${product.marca}</span>
                     </div>
                     <p class="text-secondary mb-4 line-clamp-2">${product.descricao}</p>
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center mb-4">
                         <span class="text-lg font-bold text-accent-primary" aria-label="Preço">
                             R$ ${parseFloat(product.preco).toFixed(2)}
                         </span>
-                        <div class="flex space-x-2">
-                            <button onclick="editProduct(${index})" 
-                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-full"
-                                    aria-label="Editar produto">
-                                <i data-feather="edit-2" class="w-5 h-5"></i>
-                            </button>
-                            <button onclick="deleteProduct(${index})" 
-                                    class="p-2 text-red-600 hover:bg-red-100 rounded-full"
-                                    aria-label="Excluir produto">
-                                <i data-feather="trash-2" class="w-5 h-5"></i>
-                            </button>
-                        </div>
+                        <span class="text-sm text-secondary">${product.category}</span>
+                    </div>
+                    <div class="text-xs text-secondary space-y-1">
+                        <p>Cadastrado em: ${new Date(product.createdAt).toLocaleDateString('pt-BR')}</p>
+                        <p>Última atualização: ${new Date(product.updatedAt).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div class="flex justify-end space-x-2 mt-4">
+                        <button onclick="editProduct(${index})" 
+                                class="p-2 text-blue-600 hover:bg-blue-100 rounded-full"
+                                aria-label="Editar produto">
+                            <i data-feather="edit-2" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="deleteProduct(${index})" 
+                                class="p-2 text-red-600 hover:bg-red-100 rounded-full"
+                                aria-label="Excluir produto">
+                            <i data-feather="trash-2" class="w-5 h-5"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -176,5 +177,5 @@ class UI {
     }
 }
 
-// Exporta a instância da UI
+// Exporta uma instância da classe UI
 export const ui = new UI();

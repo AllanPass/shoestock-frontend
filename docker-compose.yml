@@ -1,22 +1,22 @@
-version: '3.8'
+name: shoestock
 
 services:
   app:
     build: .
     ports:
-      - "3010:3010"
+      - "3001:3001"
     environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres?schema=public
+      - PORT=3001
       - NODE_ENV=development
-      - DB_HOST=postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=produtos
-      - DB_PORT=5432
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - HOST=0.0.0.0
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    command: npm run server
+    networks:
+      - app-network
+    restart: unless-stopped
 
   postgres:
     image: postgres:13
@@ -25,9 +25,22 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=produtos
+      - POSTGRES_DB=postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:
